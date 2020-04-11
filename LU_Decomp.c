@@ -2,9 +2,14 @@
 #include<stdlib.h>
 
 
-float *A, *L, *U, *B, *Z, *X;
+float *A, *L, *U, *B, *Z, *X,*I;
 int size;
 
+
+void free_ptr(float* ptr){
+    if(ptr!=NULL)
+        free(ptr);
+}
 
 void assign(float* arr , float value, int i){
     *(arr + i) = value;
@@ -23,13 +28,29 @@ float get(float* arr, int i){
     return *(arr+i);
 }
 
-void inputMatrix(){
+
+
+void backwardSub(float* constantArr, float* solutionArr){
+    int i,j;
+    float tempVal;
+    for(i = size-1; i >= 0; i--){
+        tempVal=get(constantArr,i);
+        for(j = size-1; j > i; j--){
+            tempVal-=get_2d(U,i,j)*get(solutionArr,j);
+        }
+        assign(solutionArr,tempVal/get_2d(U,i,i),i);
+
+    }
+
+}
+
+
+void inputMatrix(int command){
 
     printf("How Many Variables?: ");
     scanf("%i",&size);
     fflush(stdin);
     
-
     //Dynamically create array
     A = (float*)malloc(size*size*sizeof(float));
     L = (float*)malloc(size*size*sizeof(float));
@@ -37,6 +58,7 @@ void inputMatrix(){
     B = (float*)malloc(size*sizeof(float));
     Z = (float*)malloc(size*sizeof(float));
     X = (float*)malloc(size*sizeof(float));
+
     
 
 
@@ -52,10 +74,110 @@ void inputMatrix(){
             assign_2d(A,temp,r,c);
             buffPointer+=numBytes;
         }
-        sscanf(buffPointer,"%f%n",&temp,&numBytes);
-        assign(B,temp,r);
+        if (command==1){
+            sscanf(buffPointer,"%f%n",&temp,&numBytes);
+            assign(B,temp,r);
+        }
     }
    
+}
+
+void forwardSub(float* constantArr, float* solutionArr){
+    int i,j;
+    float tempVal;
+    for(i = 0; i < size; i++){
+        tempVal = get(constantArr,i);
+        for(j = 0; j < i; j++){
+            tempVal-=get_2d(L,i,j)*get(solutionArr,j);
+        }
+        assign(solutionArr,tempVal/get_2d(L,i,i),i);
+    }
+}
+
+
+void getX(){
+    backwardSub(Z,X);
+}
+
+
+void getZ(){
+    forwardSub(B,Z);
+}
+
+
+
+void printArray_2d(float* arr){
+    
+    printf("\n\n\n");
+
+    int r,j;
+    for (r = 0; r <  size; r++){ 
+        for (j = 0; j < size; j++) 
+            printf("%f ", *(arr + r * size + j)); 
+ 
+        printf("\n");
+    }
+
+}
+
+void printSolutionArray(float* arr){
+    printf("\nThe solution to the linear equation is\n");
+    int r;
+    
+    for(r=0;r<size;r++){
+            printf("x%i %f\n",r+1,get(arr,r));
+    }
+
+}
+
+
+
+void printArray(float* arr){
+    int r;
+    for(r=0;r<size;r++){
+            printf("%f\n",get(arr,r));
+    }
+    printf("\n");
+
+}
+
+void solveInverse(){
+    inputMatrix(2);
+
+    I = (float*)malloc(size*size*sizeof(float));
+    B = (float*)malloc(size*sizeof(float));
+    int i,j,k;
+    for(j = 0; j < size; j++){
+        /*
+            initialize constants for first column
+        */
+       for(i=0;i<size;i++){
+            if(i==j)
+                assign(B,1,i);
+            else
+                assign(B,0,i);
+            
+       }
+
+
+        getLU();
+        forwardSub(B,Z);
+        backwardSub(Z,X);
+
+       // place answers to Inverse matrix
+       for(k=0;k<size;k++){
+            assign_2d(I,get(X,k),k,j); 
+        }   
+
+
+        // get solution coloumn
+
+    }
+    printf("\nThe Inverse of the Square matrix is: \n");
+    printArray_2d(I);
+
+    
+
 }
 
 void getLU(){
@@ -97,65 +219,42 @@ void getLU(){
    
 }
 
-void getX(){
-    int i,j;
-    float tempVal;
-    for(i = size-1; i >= 0; i--){
-        tempVal=get(Z,i);
-        for(j = size-1; j > i; j--){
-            tempVal-=get_2d(U,i,j)*get(X,j);
-        }
-        assign(X,tempVal/get_2d(U,i,i),i);
-    }
-}
 
-void getZ(){
-    int i,j;
-    float tempVal;
-    for(i = 0; i < size; i++){
-        tempVal = get(B,i);
-        for(j = 0; j < i; j++){
-            tempVal-=get_2d(L,i,j)*get(Z,j);
-        }
-        assign(Z,tempVal/get_2d(L,i,i),i);
-    }
-}
-
-void printArray_2d(float* arr){
-    
-    printf("\n\n\n");
-
-    int r,j;
-    for (r = 0; r <  size; r++){ 
-        for (j = 0; j < size; j++) 
-            printf("%f ", *(arr + r * size + j)); 
- 
-        printf("\n");
-    }
-
-}
-
-void printArray(float* arr){
-    printf("\n\n\n");
-    int r;
-    for(r=0;r<size;r++){
-        printf("%f\n",get(arr,r));
-    }
-
-}
-
-int main(){
-
-    inputMatrix();
-    printArray(B);
+void solveX(){
+    inputMatrix(1);
     getLU();
     getZ();
     getX();
-    printArray_2d(A);
-    printArray_2d(U);
-    printArray_2d(L);
-    printArray(Z);
-    printArray(X);
+    printSolutionArray(X);
+}
+
+int main(){
+    int loop=1;
+    int command=0;
+    while(loop==1){
+        printf("\nWELCOME TO LU DECOMPOSITION PROGRAM\n1 - Solve a simulatneous linear equation\n2 - Find inverse of square matrix\npress any key to exit");
+        printf("\nEnter Command: ");
+        scanf("%d",&command);
+        switch(command){
+            case 1:
+                solveX();
+                break;
+            case 2:
+                solveInverse();
+                break;
+            default:
+                loop == 0;
+                break;
+
+        }
+        if(loop != 0){
+            printf("Do you want to exit? \n1-No \n2-Yes");
+            scanf("%i",&loop);
+        }
+
+
+    }
+ 
     /*
     1. Get array 
     2. Get U while getting L
@@ -163,5 +262,13 @@ int main(){
     4. Get Inverse 
     */ 
 
+   // *A, *L, *U, *B, *Z, *X,*I
+    free_ptr(A);
+    free_ptr(L);
+    free_ptr(U);
+    free_ptr(B);
+    free_ptr(Z);
+    free_ptr(X);
+    free_ptr(I);
     return 0;
 }
